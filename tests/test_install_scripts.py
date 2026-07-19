@@ -27,11 +27,17 @@ def test_batch_files_call_only_their_fixed_local_scripts() -> None:
         "start.bat": "scripts\\start.ps1",
         "update.bat": "scripts\\update.ps1",
         "download_models.bat": "scripts\\download_models.py",
+        "uninstall.bat": "scripts\\uninstall_native_host.ps1",
     }
     for filename, target in expected.items():
         script = _read(filename)
         assert target in script
         assert "shell=True" not in script
+
+
+def test_batch_files_switch_to_utf8_for_russian_messages() -> None:
+    for filename in ("install.bat", "start.bat", "update.bat", "download_models.bat", "uninstall.bat"):
+        assert "chcp 65001 >nul" in _read(filename)
 
 
 def test_install_uses_venv_requirements_and_release_constraints() -> None:

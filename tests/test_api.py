@@ -2,6 +2,7 @@ import shutil
 
 from fastapi.testclient import TestClient
 
+from app.config import APP_VERSION
 from app.main import app
 from app.models.schemas import VideoInfoResponse, VideoQuality
 from app.services.playlist_analyzer import QueueAnalysis, QueueAnalysisError, QueueItem
@@ -14,9 +15,9 @@ client = TestClient(app)
 def test_health() -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "0.4.0"}
+    assert response.json() == {"status": "ok", "version": APP_VERSION}
     assert response.headers["X-StreamDock-App"] == "1"
-    assert response.headers["X-StreamDock-Version"] == "0.4.0"
+    assert response.headers["X-StreamDock-Version"] == APP_VERSION
 
 
 def test_frontend_assets_are_available_from_root() -> None:
@@ -197,7 +198,7 @@ def test_extension_download_creates_background_task(monkeypatch) -> None:
     monkeypatch.setattr("app.api.extension.task_manager.create_extension_download", fake_create)
     response = client.post(
         "/api/extension/download",
-        headers={"X-Save-Video-Extension": "1"},
+        headers={"X-StreamDock-Extension": "1"},
         json={
             "stream_url": "https://media.example.com/live.m3u8?token=secret",
             "page_url": "https://training.example.com/lesson/1",
@@ -216,6 +217,23 @@ def test_extension_download_creates_background_task(monkeypatch) -> None:
         "Authorization": "Bearer test",
         "Referer": "https://training.example.com/lesson/1",
     }
+
+
+def test_extension_download_accepts_legacy_marker(monkeypatch) -> None:
+    monkeypatch.setattr("app.api.extension.validate_public_media_url", lambda url: url)
+    monkeypatch.setattr(
+        "app.api.extension.task_manager.create_extension_download",
+        lambda *_args, **_kwargs: TaskRecord(task_id="legacy-extension-task"),
+    )
+
+    response = client.post(
+        "/api/extension/download",
+        headers={"X-Save-Video-Extension": "1"},
+        json={"stream_url": "https://media.example.com/video.mp4", "stream_kind": "video"},
+    )
+
+    assert response.status_code == 202
+    assert response.json() == {"task_id": "legacy-extension-task"}
 
 
 def test_create_file_transcription_streams_to_managed_temporary_file(monkeypatch) -> None:

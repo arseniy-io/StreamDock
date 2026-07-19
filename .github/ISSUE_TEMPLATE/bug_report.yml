@@ -40,7 +40,7 @@ body:
     attributes:
       label: Версия StreamDock
       description: Укажите номер релиза или commit, если он известен.
-      placeholder: 0.3.3 или abc1234
+      placeholder: 0.4.1 или abc1234
 
   - type: textarea
     id: environment
