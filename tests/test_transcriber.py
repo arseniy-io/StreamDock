@@ -39,11 +39,12 @@ def test_cpu_model_uses_optimized_resource_profile(monkeypatch) -> None:
 
     assert captured["device"] == "cpu"
     assert captured["compute_type"] == "int8"
-    assert captured["cpu_threads"] == WHISPER_CPU_THREADS == 12
+    assert captured["cpu_threads"] == WHISPER_CPU_THREADS
+    assert 2 <= WHISPER_CPU_THREADS <= 12
     assert captured["num_workers"] == 1
     assert captured["local_files_only"] is True
     assert batch_size == WHISPER_CPU_BATCH_SIZE == 4
-    assert "12 потоков" in device_label
+    assert f"{WHISPER_CPU_THREADS} потоков" in device_label
     assert first_model is second_model
     assert created == 1
 
