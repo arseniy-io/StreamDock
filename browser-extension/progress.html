@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка - StreamDock</title>
+    <link rel="stylesheet" href="progress.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <div class="brand-lockup">
+          <img src="icons/icon128.png" alt="" width="48" height="48">
+          <div>
+            <p class="eyebrow">StreamDock</p>
+            <strong>Постоянная страница загрузки</strong>
+          </div>
+        </div>
+        <span class="local-badge"><span aria-hidden="true"></span> Только на этом компьютере</span>
+      </header>
+
+      <section class="download-card" id="downloadCard" aria-live="polite">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow" id="stateEyebrow">Загрузка видео</p>
+            <h1 id="jobTitle">Подготавливаем загрузку</h1>
+            <p class="source-host" id="sourceHost">Получаем данные видеопотока</p>
+          </div>
+          <span class="state-icon is-working" id="stateIcon" aria-hidden="true">
+            <span></span>
+          </span>
+        </div>
+
+        <div class="stage-block">
+          <div class="stage-heading">
+            <strong id="stageTitle">Подключение</strong>
+            <span id="progressValue">Подождите</span>
+          </div>
+          <p id="stageMessage">Передаём видео локальному приложению.</p>
+          <div class="progress-track is-indeterminate" id="progressTrack" role="progressbar" aria-label="Прогресс загрузки">
+            <span id="progressBar"></span>
+          </div>
+        </div>
+
+        <dl class="stats-grid" id="statsGrid" hidden>
+          <div>
+            <dt>Скачано</dt>
+            <dd id="downloadedValue">-</dd>
+          </div>
+          <div>
+            <dt>Скорость</dt>
+            <dd id="speedValue">-</dd>
+          </div>
+          <div>
+            <dt>Осталось</dt>
+            <dd id="etaValue">-</dd>
+          </div>
+        </dl>
+
+        <div class="notice" id="notice" hidden>
+          <strong id="noticeTitle">Связь временно потеряна</strong>
+          <p id="noticeText">Продолжаем проверять состояние локального приложения.</p>
+        </div>
+
+        <div class="actions" id="actions">
+          <button class="danger-button" id="cancelButton" type="button">Отменить загрузку</button>
+          <button class="primary-button" id="retryButton" type="button" hidden>Запустить и повторить</button>
+          <button class="primary-button" id="openFolderButton" type="button" hidden>Открыть папку</button>
+          <button class="secondary-button" id="openAppButton" type="button">Открыть приложение</button>
+          <button class="secondary-button" id="closeButton" type="button" hidden>Закрыть вкладку</button>
+        </div>
+
+        <p class="safe-close-note" id="safeCloseNote">Эту вкладку можно закрыть: после начала задачи загрузка продолжится в локальном приложении.</p>
+      </section>
+    </main>
+    <script src="progress.js"></script>
+  </body>
+</html>

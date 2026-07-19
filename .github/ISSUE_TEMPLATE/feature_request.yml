@@ -1,0 +1,37 @@
+name: Предложить улучшение
+description: Опишите полезный пользовательский сценарий для StreamDock
+title: "[Идея]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую проблему нужно решить?
+      description: Объясните пользовательскую потребность, а не только желаемую кнопку.
+      placeholder: Сейчас сложно...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Как должно работать решение?
+      description: Опишите простой сценарий от начала до результата.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Какие варианты уже пробовали?
+
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Границы предложения
+      options:
+        - label: Предложение сохраняет локальную работу и не требует платного облачного API.
+          required: true
+        - label: Предложение не связано с обходом DRM, платных ограничений или чужой авторизации.
+          required: true
+        - label: Я проверил существующие issues и не нашёл такого же предложения.
+          required: true

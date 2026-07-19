@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "StreamDock",
+  "version": "0.4.0",
+  "description": "Находит видео на открытой странице и безопасно сохраняет его через локальное приложение.",
+  "minimum_chrome_version": "102",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvaifPPUcHR9eavFngF2Upc0PvRrAU/dHhsB8F0lD3FkA8XKJPtdJv8KEv67/c7DTmmMFxNUKTww4DY+kjxvMi1JkqqP0l1MkWVMJeTss1h3LDY+V8g4A05hXoaPErpBVNK5NQWsI3epTIc0zkuJsrGC7MWkW9lFhwxGjB0aYW0rCOxUYkbA9UmEEpKPmaRiSS+uqz9XpMVkrT8rep+d1FTe2+4LDxl2b+3mkr0fNPqwcOetIWX+jXwaebV4/7d6BlRPJKL28y6veNyXjnIMA7otKW2lTt7EYsgsb8hWQw4TT/pAeh9hUX8dQtQvPJhIHR6ZBDDHKyl+JrVcoyQ7AlQIDAQAB",
+  "permissions": [
+    "activeTab",
+    "nativeMessaging",
+    "scripting",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "StreamDock - скачать видео со страницы",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  }
+}

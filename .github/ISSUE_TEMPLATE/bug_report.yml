@@ -1,0 +1,71 @@
+name: Сообщить об ошибке
+description: Помогите воспроизвести и исправить проблему в StreamDock
+title: "[Ошибка]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за сообщение. Не прикладывайте cookies, токены, приватные ссылки, личные видео или полные логи. Об уязвимости сообщайте по инструкции из SECURITY.md.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что произошло?
+      description: Коротко опишите фактический результат.
+      placeholder: После нажатия кнопки...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить ошибку?
+      description: Укажите точную последовательность действий без приватных данных.
+      placeholder: |
+        1. Открыть...
+        2. Выбрать...
+        3. Нажать...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Какой результат ожидался?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Версия StreamDock
+      description: Укажите номер релиза или commit, если он известен.
+      placeholder: 0.3.3 или abc1234
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Система
+      description: Версия Windows, Python, FFmpeg, Chrome, процессор и видеокарта, если это связано с ошибкой.
+      placeholder: Windows 11, Python 3.12, Chrome 128...
+    validations:
+      required: true
+
+  - type: textarea
+    id: safe_logs
+    attributes:
+      label: Безопасный фрагмент ошибки
+      description: Удалите имена пользователей, пути, URL, cookies, токены и другие личные данные.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверка перед отправкой
+      options:
+        - label: Я проверил существующие issues и не нашёл такой же проблемы.
+          required: true
+        - label: В сообщении нет cookies, токенов, приватных ссылок и личных файлов.
+          required: true
+        - label: У меня есть право использовать упомянутые материалы.
+          required: true

@@ -1,0 +1,67 @@
+# Python
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/.tox/
+/.nox/
+/.coverage
+/.coverage.*
+/coverage.xml
+/htmlcov/
+
+# Редакторы и операционная система
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Локальные настройки и секреты
+.env
+.env.*
+!.env.example
+.envrc
+/secrets/
+/credentials/
+*cookies*.txt
+*cookies*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.pid
+
+# Локальные данные приложения
+/downloads/*
+!/downloads/.gitkeep
+/models/*
+!/models/.gitkeep
+/logs/*
+!/logs/.gitkeep
+*.log
+
+# Сборки и временные файлы
+/build/
+/dist/
+/release/
+/scripts/native-host/bin/
+/node_modules/
+*.exe
+*.dll
+*.pdb
+*.obj
+*.msi
+*.msix
+*.whl
+*.zip
+*.tmp
+*.temp
+*.bak

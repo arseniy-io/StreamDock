@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamDock</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div class="brand-lockup">
+          <img class="brand-icon" src="icons/icon48.png" alt="" width="36" height="36">
+          <div>
+            <p class="eyebrow">StreamDock</p>
+            <h1>Видео на странице</h1>
+          </div>
+        </div>
+        <button class="icon-button" id="refreshButton" type="button" aria-label="Обновить список" title="Обновить список">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </header>
+
+      <section class="connection-card is-checking" id="connectionCard" aria-live="polite">
+        <div class="connection-card__status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div>
+            <strong id="connectionTitle">Проверяем приложение</strong>
+            <p id="connectionText">Связываемся с локальным помощником</p>
+          </div>
+        </div>
+        <div class="connection-actions">
+          <button class="primary-button compact-button" id="startButton" type="button" disabled>Запустить</button>
+          <button class="secondary-button compact-button danger-button" id="stopButton" type="button" hidden disabled>Остановить</button>
+        </div>
+      </section>
+
+      <section class="active-job" id="activeJobCard" hidden aria-live="polite">
+        <div class="active-job__copy">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <div>
+            <strong id="activeJobTitle">Идёт загрузка</strong>
+            <p id="activeJobText">Откройте постоянную страницу, чтобы видеть прогресс.</p>
+          </div>
+        </div>
+        <button class="secondary-button" id="openProgressButton" type="button">Открыть загрузку</button>
+      </section>
+
+      <section class="content-section" aria-labelledby="streamsTitle">
+        <div class="section-heading">
+          <h2 id="streamsTitle">Найденные потоки</h2>
+          <span class="count-badge" id="streamCount">0</span>
+        </div>
+        <div class="stream-list" id="streamList"></div>
+        <div class="empty-state" id="emptyState" hidden>
+          <strong>Поток пока не найден</strong>
+          <p>Запустите видео на странице на несколько секунд и нажмите обновить.</p>
+        </div>
+      </section>
+
+      <p class="privacy-note">Адрес видео и данные доступа передаются только приложению на этом компьютере.</p>
+      <button class="secondary-button" id="openAppButton" type="button" disabled>Открыть приложение</button>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
