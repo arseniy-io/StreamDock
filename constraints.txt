@@ -7,6 +7,6 @@ yt-dlp==2026.7.4
 yt-dlp-ejs==0.8.0
 faster-whisper==1.2.1
 onnx-asr==0.12.0
-sherpa-onnx==1.13.1
+sherpa-onnx==1.13.4
 pytest==8.4.2
 httpx==0.28.1
