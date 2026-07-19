@@ -268,7 +268,7 @@ async function performJobCancellation(jobId) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Save-Video-Extension": "1"
+            "X-StreamDock-Extension": "1"
           },
           body: JSON.stringify(secret)
         });
@@ -679,7 +679,7 @@ async function ensureJobStarted(jobId) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Save-Video-Extension": "1"
+          "X-StreamDock-Extension": "1"
         },
         body: JSON.stringify(secret)
       });

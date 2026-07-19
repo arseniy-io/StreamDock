@@ -11,11 +11,12 @@ router = APIRouter(prefix="/api/extension", tags=["extension"])
 @router.post("/download", response_model=TaskCreatedResponse, status_code=202)
 def create_extension_download(
     payload: ExtensionStreamDownloadRequest,
-    extension_marker: str | None = Header(default=None, alias="X-Save-Video-Extension"),
+    extension_marker: str | None = Header(default=None, alias="X-StreamDock-Extension"),
+    legacy_extension_marker: str | None = Header(default=None, alias="X-Save-Video-Extension"),
 ) -> TaskCreatedResponse:
     # Пользовательская веб-страница не может отправить этот JSON-запрос из-за CORS,
     # а маркер дополнительно отделяет локальное расширение от обычного frontend.
-    if extension_marker != "1":
+    if extension_marker != "1" and legacy_extension_marker != "1":
         raise HTTPException(status_code=403, detail="Запрос доступен только локальному расширению")
 
     try:
