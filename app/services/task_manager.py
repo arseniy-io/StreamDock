@@ -20,6 +20,7 @@ from app.services.transcriber import TranscriptionError, transcribe_local_file, 
 
 
 logger = logging.getLogger(__name__)
+MAX_ACTIVE_TASK_PROGRESS = 99.0
 
 
 def _completed_cleanup_event() -> Event:
@@ -434,6 +435,12 @@ class TaskManager:
             task = self._tasks[task_id]
             if task.cancel_event.is_set():
                 return
+            if stage == "completed":
+                # Файлы могут быть готовы во временной папке, но ещё не опубликованы
+                # в downloads. Окончательные 100% выставляет только _finish_download.
+                stage = "saving"
+                progress = None
+                message = "Проверяем и сохраняем итоговый файл"
             task.status = "running"
             if task.stage != stage:
                 task.processed_seconds = None
@@ -443,7 +450,11 @@ class TaskManager:
                 task.total_bytes = None
                 task.speed_bytes_per_second = None
             task.stage = stage
-            task.progress = None if progress is None else min(100, max(0, round(progress, 1)))
+            task.progress = (
+                None
+                if progress is None
+                else min(MAX_ACTIVE_TASK_PROGRESS, max(0, round(progress, 1)))
+            )
             task.message = message
             if details:
                 for field_name in (

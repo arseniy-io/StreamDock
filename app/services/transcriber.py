@@ -27,6 +27,7 @@ from app.services.downloader import (
     DownloadCancelled,
     FFMPEG_DIRECTORY,
     YTDLP_RUNTIME_OPTIONS,
+    active_download_progress,
     format_duration,
     validate_time_range,
     validate_video_url,
@@ -895,7 +896,7 @@ def _download_audio(
             total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
             speed = float(data.get("speed") or 0) or None
             eta = float(data.get("eta") or 0) or None
-            progress = min(100, downloaded / total * 100) if total > 0 else None
+            progress = active_download_progress(downloaded, total)
             progress_callback(
                 "downloading_audio",
                 progress,

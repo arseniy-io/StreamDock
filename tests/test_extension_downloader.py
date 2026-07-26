@@ -167,7 +167,8 @@ def test_download_extension_stream_passes_safe_headers_and_saves_file(monkeypatc
     assert result.read_bytes() == b"test-video"
     assert result.name == "Тестовый эфир.mp4"
     assert captured["http_headers"] == {"Authorization": "Bearer test"}
-    assert any(stage == "downloading" and progress == 100 for stage, progress, _ in updates)
+    assert not any(stage == "downloading" and progress == 100 for stage, progress, _ in updates)
+    assert updates[-1] == ("completed", 100, "Видео сохранено")
 
 
 def test_download_extension_stream_rejects_single_track(monkeypatch, tmp_path) -> None:

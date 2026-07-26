@@ -303,6 +303,29 @@ def test_progress_resets_when_stage_changes(tmp_path: Path) -> None:
     assert updated.total_bytes is None
 
 
+def test_task_manager_keeps_100_percent_for_published_file_only(tmp_path: Path) -> None:
+    manager = TaskManager(tmp_path)
+    task = TaskRecord(task_id="final-progress")
+    manager._tasks[task.task_id] = task
+
+    manager._update(task.task_id, "downloading", 100, "Первая дорожка готова")
+    active = manager.get(task.task_id)
+
+    assert active is not None
+    assert active.status == "running"
+    assert active.stage == "downloading"
+    assert active.progress == 99
+
+    manager._update(task.task_id, "completed", 100, "Видео сохранено")
+    pending_publish = manager.get(task.task_id)
+
+    assert pending_publish is not None
+    assert pending_publish.status == "running"
+    assert pending_publish.stage == "saving"
+    assert pending_publish.progress is None
+    assert pending_publish.message == "Проверяем и сохраняем итоговый файл"
+
+
 def test_task_manager_transcribes_local_file_and_removes_temporary_copy(monkeypatch, tmp_path: Path) -> None:
     upload_directory = tmp_path / "upload"
     upload_directory.mkdir()

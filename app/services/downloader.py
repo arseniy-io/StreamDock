@@ -295,6 +295,14 @@ def analyze_video(url: str) -> VideoInfoResponse:
 
 ProgressDetails = dict[str, float | int | str | None]
 ProgressCallback = Callable[[str, float | None, str, ProgressDetails | None], None]
+MAX_ACTIVE_DOWNLOAD_PROGRESS = 99.0
+
+
+def active_download_progress(downloaded_bytes: int, total_bytes: int) -> float | None:
+    """Не показывает 100% до фактического сохранения итогового файла."""
+    if total_bytes <= 0:
+        return None
+    return min(MAX_ACTIVE_DOWNLOAD_PROGRESS, downloaded_bytes / total_bytes * 100)
 
 
 def build_video_format_selector(height: int) -> str:
@@ -378,7 +386,7 @@ def download_video(
             total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
             speed = float(data.get("speed") or 0) or None
             eta = float(data.get("eta") or 0) or None
-            progress = min(100, downloaded / total * 100) if total > 0 else None
+            progress = active_download_progress(downloaded, total)
             progress_callback(
                 "downloading",
                 progress,
@@ -399,7 +407,7 @@ def download_video(
         if data.get("status") == "started":
             progress_callback("processing", None, "Объединяем видео и аудио через FFmpeg", None)
         elif data.get("status") == "finished":
-            progress_callback("processing", 100, "Дорожки обработаны", None)
+            progress_callback("processing", None, "Проверяем обработанные дорожки", None)
 
     def cleanup_work_directory() -> None:
         cleanup_attempts = 5
@@ -521,7 +529,7 @@ def download_audio(
             total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
             speed = float(data.get("speed") or 0) or None
             eta = float(data.get("eta") or 0) or None
-            progress = min(100, downloaded / total * 100) if total > 0 else None
+            progress = active_download_progress(downloaded, total)
             progress_callback(
                 "downloading",
                 progress,
@@ -543,7 +551,7 @@ def download_audio(
             action = "Конвертируем аудио в MP3" if output_format == "mp3" else "Подготавливаем M4A"
             progress_callback("processing", None, action, None)
         elif data.get("status") == "finished":
-            progress_callback("processing", 100, "Аудио обработано", None)
+            progress_callback("processing", None, "Проверяем обработанный аудиофайл", None)
 
     selected_format = "bestaudio[ext=m4a]/bestaudio/best" if output_format == "m4a" else "bestaudio/best"
     options = {

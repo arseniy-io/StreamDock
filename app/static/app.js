@@ -911,8 +911,10 @@ function taskProgressDetail(task) {
 }
 
 function showProgress(stage, progress, message, detail = '') {
-  const numericProgress = progress === null || progress === undefined ? null : Math.max(0, Math.min(100, Number(progress)));
   const baseStage = String(stage || '').replace(/^queue_/, '');
+  const numericProgress = progress === null || progress === undefined
+    ? null
+    : Math.max(0, Math.min(baseStage === 'completed' ? 100 : 99, Number(progress)));
   taskStage.textContent = STAGE_LABELS[baseStage] || 'Выполняется';
   taskMessage.textContent = message;
   taskDetail.textContent = detail;

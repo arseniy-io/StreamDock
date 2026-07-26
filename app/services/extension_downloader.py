@@ -25,6 +25,7 @@ from app.services.downloader import (
     VideoAnalysisError,
     YTDLP_RUNTIME_OPTIONS,
     _cleanup_directory_when_released,
+    active_download_progress,
 )
 from app.services.file_manager import sanitize_filename
 
@@ -237,7 +238,7 @@ def download_extension_stream(
             total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
             speed = float(data.get("speed") or 0) or None
             eta = float(data.get("eta") or 0) or None
-            progress = min(100, downloaded / total * 100) if total > 0 else None
+            progress = active_download_progress(downloaded, total)
             progress_callback(
                 "downloading",
                 progress,
@@ -258,7 +259,7 @@ def download_extension_stream(
         if data.get("status") == "started":
             progress_callback("processing", None, "Объединяем видео и аудио", None)
         elif data.get("status") == "finished":
-            progress_callback("processing", 100, "Видео обработано", None)
+            progress_callback("processing", None, "Проверяем обработанный видеофайл", None)
 
     def cleanup_work_directory() -> None:
         attempt = 0

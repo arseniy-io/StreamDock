@@ -91,7 +91,14 @@ function renderStatus(status) {
   const cancelled = state === "cancelled";
   const disconnected = state === "disconnected";
   const terminal = completed || failed || cancelled;
-  const progress = typeof status.progress === "number" ? Math.max(0, Math.min(100, status.progress)) : null;
+  const reportedProgress = typeof status.progress === "number"
+    ? Math.max(0, Math.min(100, status.progress))
+    : null;
+  const progress = completed
+    ? 100
+    : terminal
+      ? null
+      : reportedProgress === null ? null : Math.min(99, reportedProgress);
 
   setStateIcon(state);
   stateEyebrow.textContent = completed ? "Видео сохранено" : failed ? "Загрузка не завершена" : cancelled ? "Загрузка отменена" : "Загрузка видео";
@@ -106,8 +113,10 @@ function renderStatus(status) {
     progressValue.textContent = `${Math.round(progress)}%`;
     progressTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
   } else {
-    progressBar.style.width = terminal ? "100%" : "38%";
-    progressValue.textContent = terminal ? (completed ? "100%" : "Завершено") : "В процессе";
+    progressBar.style.width = completed ? "100%" : terminal ? "0" : "38%";
+    progressValue.textContent = completed
+      ? "100%"
+      : terminal ? (cancelled ? "Отменено" : "Не завершено") : "В процессе";
     progressTrack.removeAttribute("aria-valuenow");
   }
 
