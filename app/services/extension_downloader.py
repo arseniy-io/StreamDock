@@ -24,8 +24,9 @@ from app.services.downloader import (
     ProgressCallback,
     VideoAnalysisError,
     YTDLP_RUNTIME_OPTIONS,
+    YtdlpProgressTracker,
     _cleanup_directory_when_released,
-    active_download_progress,
+    download_progress_message,
 )
 from app.services.file_manager import sanitize_filename
 
@@ -230,28 +231,26 @@ def download_extension_stream(
     destination_owned_by_task = False
     destination_published_by_task = False
 
+    progress_tracker = YtdlpProgressTracker()
+    progress_callback_lock = Lock()
+
     def progress_hook(data: dict) -> None:
         if cancel_event.is_set():
             raise DownloadCancelled("Загрузка отменена")
-        if data.get("status") == "downloading":
-            downloaded = int(data.get("downloaded_bytes") or 0)
-            total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
-            speed = float(data.get("speed") or 0) or None
-            eta = float(data.get("eta") or 0) or None
-            progress = active_download_progress(downloaded, total)
-            progress_callback(
-                "downloading",
-                progress,
-                "Скачиваем видеопоток",
-                {
-                    "downloaded_bytes": downloaded,
-                    "total_bytes": total or None,
-                    "speed_bytes_per_second": speed,
-                    "eta_seconds": eta,
-                },
-            )
-        elif data.get("status") == "finished":
-            progress_callback("processing", None, "Подготавливаем видеофайл", None)
+        if data.get("status") in {"downloading", "finished"}:
+            with progress_callback_lock:
+                snapshot = progress_tracker.update(data)
+                progress_callback(
+                    "downloading",
+                    snapshot.progress,
+                    download_progress_message(snapshot.track_kind, "Скачиваем видео"),
+                    {
+                        "downloaded_bytes": snapshot.downloaded_bytes,
+                        "total_bytes": snapshot.total_bytes,
+                        "speed_bytes_per_second": snapshot.speed_bytes_per_second,
+                        "eta_seconds": snapshot.eta_seconds,
+                    },
+                )
 
     def postprocessor_hook(data: dict) -> None:
         if cancel_event.is_set():

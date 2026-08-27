@@ -1,7 +1,7 @@
 import os
 import shutil
 import socket
-from threading import Event
+from threading import Event, Thread
 
 import pytest
 
@@ -169,6 +169,174 @@ def test_download_extension_stream_passes_safe_headers_and_saves_file(monkeypatc
     assert captured["http_headers"] == {"Authorization": "Bearer test"}
     assert not any(stage == "downloading" and progress == 100 for stage, progress, _ in updates)
     assert updates[-1] == ("completed", 100, "Видео сохранено")
+
+
+def test_download_extension_stream_reports_one_progress_for_video_and_audio(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    updates = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download):
+            output_path = self.options["outtmpl"].replace("%(ext)s", "mp4")
+            with open(output_path, "wb") as destination:
+                destination.write(b"test-video")
+
+            hook = self.options["progress_hooks"][0]
+            video_info = {"format_id": "video", "vcodec": "h264", "acodec": "none"}
+            audio_info = {"format_id": "audio", "vcodec": "none", "acodec": "aac"}
+            for status, downloaded_bytes in (("downloading", 50), ("finished", 100)):
+                hook(
+                    {
+                        "status": status,
+                        "filename": f"{output_path}.fvideo.mp4",
+                        "downloaded_bytes": downloaded_bytes,
+                        "total_bytes": 100,
+                        "speed": 10,
+                        "info_dict": video_info,
+                    }
+                )
+            for status, downloaded_bytes in (("downloading", 1), ("finished", 20)):
+                hook(
+                    {
+                        "status": status,
+                        "filename": f"{output_path}.faudio.m4a",
+                        "downloaded_bytes": downloaded_bytes,
+                        "total_bytes": 20,
+                        "speed": 2,
+                        "info_dict": audio_info,
+                    }
+                )
+
+            postprocessor_hook = self.options["postprocessor_hooks"][0]
+            postprocessor_hook({"status": "started"})
+            postprocessor_hook({"status": "finished"})
+            return {"url": url, "download": download}
+
+    monkeypatch.setattr("app.services.extension_downloader.validate_public_media_url", lambda url: url)
+    monkeypatch.setattr("app.services.extension_downloader.probe_media_tracks", lambda path: (True, True))
+    monkeypatch.setattr("app.services.extension_downloader.yt_dlp.YoutubeDL", FakeYoutubeDL)
+
+    result = download_extension_stream(
+        "https://media.example.com/master.m3u8",
+        "Тестовый эфир",
+        "hls",
+        {},
+        tmp_path,
+        lambda stage, progress, message, details=None: updates.append(
+            (stage, progress, message, details)
+        ),
+        Event(),
+    )
+
+    downloading = [update for update in updates if update[0] == "downloading"]
+    progresses = [update[1] for update in downloading]
+    downloaded_bytes = [update[3]["downloaded_bytes"] for update in downloading]
+    assert progresses == sorted(progresses)
+    assert all(progress is not None and progress < 100 for progress in progresses)
+    assert downloaded_bytes == sorted(downloaded_bytes)
+    assert "Скачиваем видеодорожку" in {update[2] for update in downloading}
+    assert "Скачиваем аудиодорожку" in {update[2] for update in downloading}
+    assert max(index for index, update in enumerate(updates) if update[0] == "downloading") < min(
+        index for index, update in enumerate(updates) if update[0] == "processing"
+    )
+    assert sum(update[0] == "completed" and update[1] == 100 for update in updates) == 1
+    assert result.name == "Тестовый эфир.mp4"
+
+
+def test_download_extension_stream_serializes_parallel_progress_callbacks(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    updates = []
+    low_callback_started = Event()
+    high_callback_finished = Event()
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download):
+            output_path = self.options["outtmpl"].replace("%(ext)s", "mp4")
+            with open(output_path, "wb") as destination:
+                destination.write(b"test-video")
+
+            hook = self.options["progress_hooks"][0]
+            info = {"format_id": "combined", "vcodec": "h264", "acodec": "aac"}
+            low = Thread(
+                target=lambda: hook(
+                    {
+                        "status": "downloading",
+                        "filename": output_path,
+                        "downloaded_bytes": 10,
+                        "total_bytes": 100,
+                        "info_dict": info,
+                    }
+                )
+            )
+            high = Thread(
+                target=lambda: hook(
+                    {
+                        "status": "downloading",
+                        "filename": output_path,
+                        "downloaded_bytes": 80,
+                        "total_bytes": 100,
+                        "info_dict": info,
+                    }
+                )
+            )
+            low.start()
+            assert low_callback_started.wait(timeout=1)
+            high.start()
+            low.join(timeout=1)
+            high.join(timeout=1)
+            assert not low.is_alive()
+            assert not high.is_alive()
+            return {"url": url, "download": download}
+
+    def record_update(stage, progress, message, details=None):
+        if stage == "downloading" and details["downloaded_bytes"] == 10:
+            low_callback_started.set()
+            high_callback_finished.wait(timeout=0.1)
+        elif stage == "downloading" and details["downloaded_bytes"] == 80:
+            updates.append((stage, progress, message, details))
+            high_callback_finished.set()
+            return
+        updates.append((stage, progress, message, details))
+
+    monkeypatch.setattr("app.services.extension_downloader.validate_public_media_url", lambda url: url)
+    monkeypatch.setattr("app.services.extension_downloader.probe_media_tracks", lambda path: (True, True))
+    monkeypatch.setattr("app.services.extension_downloader.yt_dlp.YoutubeDL", FakeYoutubeDL)
+
+    download_extension_stream(
+        "https://media.example.com/master.mpd",
+        "Параллельные дорожки",
+        "dash",
+        {},
+        tmp_path,
+        record_update,
+        Event(),
+    )
+
+    downloading = [update for update in updates if update[0] == "downloading"]
+    assert [update[1] for update in downloading] == sorted(update[1] for update in downloading)
+    assert [update[3]["downloaded_bytes"] for update in downloading] == [10, 80]
 
 
 def test_download_extension_stream_rejects_single_track(monkeypatch, tmp_path) -> None:

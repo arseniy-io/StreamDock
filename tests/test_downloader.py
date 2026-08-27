@@ -2,6 +2,7 @@ import pytest
 
 from app.config import YTDLP_CONCURRENT_FRAGMENTS
 from app.services.downloader import (
+    YtdlpProgressTracker,
     _apply_download_range,
     build_video_format_selector,
     format_duration,
@@ -12,6 +13,180 @@ from app.services.downloader import (
     validate_video_url,
     validate_time_range,
 )
+
+
+def test_multitrack_progress_is_cumulative_and_never_restarts() -> None:
+    tracker = YtdlpProgressTracker()
+    video_info = {"format_id": "video", "vcodec": None, "acodec": "none"}
+    audio_info = {"format_id": "audio", "vcodec": "none", "acodec": None}
+
+    snapshots = [
+        tracker.update(
+            {
+                "status": "downloading",
+                "filename": "lesson.fvideo.mp4",
+                "downloaded_bytes": 50,
+                "total_bytes": 100,
+                "speed": 10,
+                "info_dict": video_info,
+            }
+        ),
+        tracker.update(
+            {
+                "status": "finished",
+                "filename": "lesson.fvideo.mp4",
+                "downloaded_bytes": 100,
+                "total_bytes": 100,
+                "info_dict": video_info,
+            }
+        ),
+        tracker.update(
+            {
+                "status": "downloading",
+                "filename": "lesson.faudio.m4a",
+                "downloaded_bytes": 1,
+                "total_bytes": 20,
+                "speed": 2,
+                "info_dict": audio_info,
+            }
+        ),
+        tracker.update(
+            {
+                "status": "finished",
+                "filename": "lesson.faudio.m4a",
+                "downloaded_bytes": 20,
+                "total_bytes": 20,
+                "info_dict": audio_info,
+            }
+        ),
+    ]
+
+    progresses = [snapshot.progress for snapshot in snapshots]
+    assert progresses == sorted(progresses)
+    assert all(progress is not None and progress < 100 for progress in progresses)
+    assert snapshots[2].progress > snapshots[1].progress
+    assert [snapshot.downloaded_bytes for snapshot in snapshots] == [50, 100, 101, 120]
+    assert snapshots[2].total_bytes == 120
+    assert snapshots[-1].progress == 99
+    assert snapshots[0].track_kind == "video"
+    assert snapshots[2].track_kind == "audio"
+
+
+def test_multitrack_progress_aggregates_parallel_downloader_callbacks() -> None:
+    tracker = YtdlpProgressTracker()
+
+    snapshots = [
+        tracker.update(
+            {
+                "status": "downloading",
+                "progress_idx": 0,
+                "max_progress": 2,
+                "downloaded_bytes": 40,
+                "total_bytes": 100,
+                "info_dict": {"vcodec": "h264", "acodec": "none"},
+            }
+        ),
+        tracker.update(
+            {
+                "status": "downloading",
+                "progress_idx": 1,
+                "max_progress": 2,
+                "downloaded_bytes": 10,
+                "total_bytes": 20,
+                "info_dict": {"vcodec": "none", "acodec": "aac"},
+            }
+        ),
+        tracker.update(
+            {
+                "status": "finished",
+                "progress_idx": 0,
+                "max_progress": 2,
+                "downloaded_bytes": 100,
+                "total_bytes": 100,
+                "info_dict": {"vcodec": "h264", "acodec": "none"},
+            }
+        ),
+        tracker.update(
+            {
+                "status": "finished",
+                "progress_idx": 1,
+                "max_progress": 2,
+                "downloaded_bytes": 20,
+                "total_bytes": 20,
+                "info_dict": {"vcodec": "none", "acodec": "aac"},
+            }
+        ),
+    ]
+
+    progresses = [snapshot.progress for snapshot in snapshots]
+    assert progresses == sorted(progresses)
+    assert snapshots[0].total_bytes == 111
+    assert snapshots[-1].downloaded_bytes == 120
+    assert snapshots[-1].total_bytes == 120
+    assert snapshots[-1].progress == 99
+
+
+def test_download_progress_does_not_move_backwards_during_retry() -> None:
+    tracker = YtdlpProgressTracker()
+    info = {"format_id": "combined", "vcodec": "h264", "acodec": "aac"}
+
+    before_retry = tracker.update(
+        {
+            "status": "downloading",
+            "filename": "lesson.mp4",
+            "downloaded_bytes": 80,
+            "total_bytes": 100,
+            "speed": 10,
+            "eta": 2,
+            "info_dict": info,
+        }
+    )
+    after_retry = tracker.update(
+        {
+            "status": "downloading",
+            "filename": "lesson.mp4",
+            "downloaded_bytes": 10,
+            "total_bytes": 100,
+            "speed": 10,
+            "eta": 9,
+            "info_dict": info,
+        }
+    )
+
+    assert after_retry.progress == before_retry.progress
+    assert after_retry.downloaded_bytes == before_retry.downloaded_bytes
+    assert after_retry.eta_seconds == 9
+
+
+def test_multitrack_progress_uses_fragments_when_current_total_is_unknown() -> None:
+    tracker = YtdlpProgressTracker()
+    tracker.update(
+        {
+            "status": "finished",
+            "filename": "lesson.fvideo.mp4",
+            "downloaded_bytes": 100,
+            "total_bytes": 100,
+            "info_dict": {"vcodec": "h264", "acodec": "none"},
+        }
+    )
+
+    audio = tracker.update(
+        {
+            "status": "downloading",
+            "filename": "lesson.faudio.m4a",
+            "downloaded_bytes": 20,
+            "fragment_index": 5,
+            "fragment_count": 10,
+            "speed": 2,
+            "eta": 5,
+            "info_dict": {"vcodec": "none", "acodec": "aac"},
+        }
+    )
+
+    assert audio.progress == 95
+    assert audio.downloaded_bytes == 120
+    assert audio.total_bytes is None
+    assert audio.eta_seconds == 5
 
 
 @pytest.mark.parametrize(

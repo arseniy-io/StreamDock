@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 import os
 from pathlib import Path
 import shutil
 import tempfile
 import time
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import Callable
 from urllib.parse import urlparse
 
@@ -305,6 +306,228 @@ def active_download_progress(downloaded_bytes: int, total_bytes: int) -> float |
     return min(MAX_ACTIVE_DOWNLOAD_PROGRESS, downloaded_bytes / total_bytes * 100)
 
 
+@dataclass
+class DownloadProgressSnapshot:
+    progress: float | None
+    downloaded_bytes: int
+    total_bytes: int | None
+    speed_bytes_per_second: float | None
+    eta_seconds: float | None
+    track_kind: str
+
+
+@dataclass
+class _DownloadComponentProgress:
+    track_kind: str
+    downloaded_bytes: int = 0
+    current_downloaded_bytes: int = 0
+    total_bytes: int | None = None
+    speed_bytes_per_second: float | None = None
+    fraction: float | None = None
+
+
+class YtdlpProgressTracker:
+    """Собирает несколько дорожек yt-dlp в один непрерывный прогресс задачи."""
+
+    # Размер второй дорожки неизвестен, пока yt-dlp не начал её скачивать.
+    # Резерв сохраняет непрерывную шкалу, а затем заменяется фактической суммой байтов.
+    VIDEO_SHARE = 0.9
+    AUDIO_SHARE = 0.1
+
+    def __init__(self) -> None:
+        self._components: dict[str, _DownloadComponentProgress] = {}
+        self._expected_count = 1
+        self._separate_tracks = False
+        self._last_progress = 0.0
+        self._lock = Lock()
+
+    @staticmethod
+    def _track_kind(info: dict) -> str:
+        video_codec = str(info.get("vcodec") or "").lower()
+        audio_codec = str(info.get("acodec") or "").lower()
+        has_video = video_codec not in {"", "none"}
+        has_audio = audio_codec not in {"", "none"}
+        if audio_codec == "none" and video_codec != "none":
+            return "video"
+        if video_codec == "none" and audio_codec != "none":
+            return "audio"
+        if has_video and has_audio:
+            return "combined"
+        return "unknown"
+
+    def _component_key(self, data: dict, track_kind: str, info: dict) -> str:
+        progress_index = data.get("progress_idx")
+        max_progress = data.get("max_progress")
+        if track_kind in {"video", "audio"}:
+            self._separate_tracks = True
+            self._expected_count = max(self._expected_count, 2)
+        if isinstance(progress_index, int) and isinstance(max_progress, int) and max_progress > 1:
+            self._expected_count = max(self._expected_count, max_progress)
+            return f"progress:{progress_index}"
+        if track_kind in {"video", "audio"}:
+            return f"track:{track_kind}"
+        identity = (
+            data.get("filename")
+            or data.get("tmpfilename")
+            or info.get("format_id")
+            or "media"
+        )
+        return f"file:{identity}"
+
+    def _estimated_total_bytes(self) -> int | None:
+        components = list(self._components.values())
+        known_totals = [component.total_bytes for component in components if component.total_bytes]
+        if not known_totals:
+            return None
+
+        if self._separate_tracks:
+            video_total = sum(
+                component.total_bytes or 0
+                for component in components
+                if component.track_kind == "video"
+            )
+            audio_total = sum(
+                component.total_bytes or 0
+                for component in components
+                if component.track_kind == "audio"
+            )
+            other_total = sum(
+                component.total_bytes or 0
+                for component in components
+                if component.track_kind not in {"video", "audio"}
+            )
+            if video_total and audio_total:
+                return video_total + audio_total + other_total
+            if video_total:
+                return round(video_total / self.VIDEO_SHARE) + other_total
+            if audio_total:
+                return round(audio_total / self.AUDIO_SHARE) + other_total
+
+        known_total = sum(known_totals)
+        missing_count = max(0, self._expected_count - len(known_totals))
+        if missing_count:
+            known_total += round(known_total / len(known_totals) * missing_count)
+        return known_total
+
+    def _fallback_fraction(self) -> float | None:
+        components = list(self._components.values())
+        if self._separate_tracks:
+            video_fraction = max(
+                (
+                    component.fraction or 0
+                    for component in components
+                    if component.track_kind == "video"
+                ),
+                default=0,
+            )
+            audio_fraction = max(
+                (
+                    component.fraction or 0
+                    for component in components
+                    if component.track_kind == "audio"
+                ),
+                default=0,
+            )
+            return video_fraction * self.VIDEO_SHARE + audio_fraction * self.AUDIO_SHARE
+
+        fractions = [component.fraction for component in components if component.fraction is not None]
+        if not fractions:
+            return None
+        if self._expected_count > 1:
+            return sum(fractions) / self._expected_count
+        return max(fractions)
+
+    def update(self, data: dict) -> DownloadProgressSnapshot:
+        with self._lock:
+            return self._update(data)
+
+    def _update(self, data: dict) -> DownloadProgressSnapshot:
+        info = data.get("info_dict") if isinstance(data.get("info_dict"), dict) else {}
+        track_kind = self._track_kind(info)
+        component_key = self._component_key(data, track_kind, info)
+        component = self._components.setdefault(
+            component_key,
+            _DownloadComponentProgress(track_kind=track_kind),
+        )
+
+        status = str(data.get("status") or "")
+        downloaded = max(0, int(data.get("downloaded_bytes") or 0))
+        total = max(0, int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0))
+        component.downloaded_bytes = max(component.downloaded_bytes, downloaded)
+        component.current_downloaded_bytes = downloaded
+        if status == "finished":
+            component.total_bytes = max(component.downloaded_bytes, total)
+            component.current_downloaded_bytes = component.downloaded_bytes
+            component.fraction = 1.0
+            component.speed_bytes_per_second = None
+        else:
+            if total:
+                component.total_bytes = max(component.total_bytes or 0, total)
+                fraction = min(1.0, downloaded / total)
+            else:
+                fragment_index = int(data.get("fragment_index") or 0)
+                fragment_count = int(data.get("fragment_count") or 0)
+                fraction = min(1.0, fragment_index / fragment_count) if fragment_count else None
+            if fraction is not None:
+                component.fraction = max(component.fraction or 0, fraction)
+            speed = float(data.get("speed") or 0)
+            component.speed_bytes_per_second = speed if speed > 0 else None
+
+        downloaded_bytes = sum(item.downloaded_bytes for item in self._components.values())
+        current_downloaded_bytes = sum(
+            item.current_downloaded_bytes
+            for item in self._components.values()
+        )
+        has_unknown_component_total = any(
+            item.total_bytes is None
+            for item in self._components.values()
+        )
+        total_bytes = None if has_unknown_component_total else self._estimated_total_bytes()
+        if total_bytes is not None:
+            total_bytes = max(total_bytes, downloaded_bytes)
+        if self._separate_tracks:
+            raw_fraction = self._fallback_fraction()
+        elif total_bytes is not None:
+            raw_fraction = downloaded_bytes / total_bytes if total_bytes else None
+        else:
+            raw_fraction = self._fallback_fraction()
+
+        if raw_fraction is None:
+            progress = self._last_progress or None
+        else:
+            progress = active_download_progress(round(raw_fraction * 1_000_000), 1_000_000)
+            if progress is not None:
+                progress = max(self._last_progress, progress)
+                self._last_progress = progress
+
+        speed = sum(
+            item.speed_bytes_per_second or 0
+            for item in self._components.values()
+        ) or None
+        if total_bytes is not None and speed:
+            eta = max(0.0, (total_bytes - current_downloaded_bytes) / speed)
+        else:
+            raw_eta = float(data.get("eta") or 0)
+            eta = raw_eta if raw_eta > 0 else None
+
+        return DownloadProgressSnapshot(
+            progress=progress,
+            downloaded_bytes=downloaded_bytes,
+            total_bytes=total_bytes,
+            speed_bytes_per_second=speed,
+            eta_seconds=eta,
+            track_kind=track_kind,
+        )
+
+
+def download_progress_message(track_kind: str, fallback: str) -> str:
+    if track_kind == "video":
+        return "Скачиваем видеодорожку"
+    if track_kind == "audio":
+        return "Скачиваем аудиодорожку"
+    return fallback
+
+
 def build_video_format_selector(height: int) -> str:
     """Сначала выбирает готовый MP4 нужной высоты, затем раздельные дорожки."""
     return (
@@ -378,28 +601,26 @@ def download_video(
     output_template = f"{work_stem}.%(ext)s"
     selected_format = build_video_format_selector(height)
 
+    progress_tracker = YtdlpProgressTracker()
+    progress_callback_lock = Lock()
+
     def progress_hook(data: dict) -> None:
         if cancel_event.is_set():
             raise DownloadCancelled("Загрузка отменена")
-        if data.get("status") == "downloading":
-            downloaded = int(data.get("downloaded_bytes") or 0)
-            total = int(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
-            speed = float(data.get("speed") or 0) or None
-            eta = float(data.get("eta") or 0) or None
-            progress = active_download_progress(downloaded, total)
-            progress_callback(
-                "downloading",
-                progress,
-                "Скачиваем видеодорожки",
-                {
-                    "downloaded_bytes": downloaded,
-                    "total_bytes": total or None,
-                    "speed_bytes_per_second": speed,
-                    "eta_seconds": eta,
-                },
-            )
-        elif data.get("status") == "finished":
-            progress_callback("processing", None, "Подготавливаем дорожки", None)
+        if data.get("status") in {"downloading", "finished"}:
+            with progress_callback_lock:
+                snapshot = progress_tracker.update(data)
+                progress_callback(
+                    "downloading",
+                    snapshot.progress,
+                    download_progress_message(snapshot.track_kind, "Скачиваем видео"),
+                    {
+                        "downloaded_bytes": snapshot.downloaded_bytes,
+                        "total_bytes": snapshot.total_bytes,
+                        "speed_bytes_per_second": snapshot.speed_bytes_per_second,
+                        "eta_seconds": snapshot.eta_seconds,
+                    },
+                )
 
     def postprocessor_hook(data: dict) -> None:
         if cancel_event.is_set():
