@@ -233,13 +233,16 @@ def download_extension_stream(
 
     progress_tracker = YtdlpProgressTracker()
     progress_callback_lock = Lock()
+    last_download_progress: float | None = None
 
     def progress_hook(data: dict) -> None:
+        nonlocal last_download_progress
         if cancel_event.is_set():
             raise DownloadCancelled("Загрузка отменена")
         if data.get("status") in {"downloading", "finished"}:
             with progress_callback_lock:
                 snapshot = progress_tracker.update(data)
+                last_download_progress = snapshot.progress
                 progress_callback(
                     "downloading",
                     snapshot.progress,
@@ -256,9 +259,19 @@ def download_extension_stream(
         if cancel_event.is_set():
             raise DownloadCancelled("Загрузка отменена")
         if data.get("status") == "started":
-            progress_callback("processing", None, "Объединяем видео и аудио", None)
+            progress_callback(
+                "processing",
+                last_download_progress,
+                "Объединяем видео и аудио",
+                None,
+            )
         elif data.get("status") == "finished":
-            progress_callback("processing", None, "Проверяем обработанный видеофайл", None)
+            progress_callback(
+                "processing",
+                last_download_progress,
+                "Проверяем обработанный видеофайл",
+                None,
+            )
 
     def cleanup_work_directory() -> None:
         attempt = 0

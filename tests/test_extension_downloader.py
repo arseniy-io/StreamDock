@@ -251,6 +251,10 @@ def test_download_extension_stream_reports_one_progress_for_video_and_audio(
     assert max(index for index, update in enumerate(updates) if update[0] == "downloading") < min(
         index for index, update in enumerate(updates) if update[0] == "processing"
     )
+    processing = [update for update in updates if update[0] == "processing"]
+    assert processing
+    assert all(update[1] == progresses[-1] for update in processing)
+    assert all(update[1] is not None and update[1] < 100 for update in processing)
     assert sum(update[0] == "completed" and update[1] == 100 for update in updates) == 1
     assert result.name == "Тестовый эфир.mp4"
 
