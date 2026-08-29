@@ -304,7 +304,7 @@ def download_extension_stream(
 
     options = {
         **YTDLP_RUNTIME_OPTIONS,
-        "format": "bestvideo+bestaudio/best[vcodec!=none][acodec!=none]",
+        "format": "bestvideo+bestaudio/best",
         "outtmpl": output_template,
         "merge_output_format": "mp4",
         "http_headers": safe_headers,
