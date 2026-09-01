@@ -94,6 +94,7 @@ def test_download_extension_stream_normalizes_kinescope_child_url(monkeypatch, t
     class FakeYoutubeDL:
         def __init__(self, options):
             self.options = options
+            captured.update(options)
 
         def __enter__(self):
             return self
@@ -124,6 +125,7 @@ def test_download_extension_stream_normalizes_kinescope_child_url(monkeypatch, t
     assert captured["url"] == (
         "https://cdn.kinescope.io/video-id/master.m3u8?type=video&token=secret-test"
     )
+    assert str(captured["impersonate"]) == "chrome"
 
 
 def test_download_extension_stream_passes_safe_headers_and_saves_file(monkeypatch, tmp_path) -> None:
@@ -168,6 +170,7 @@ def test_download_extension_stream_passes_safe_headers_and_saves_file(monkeypatc
     assert result.name == "Тестовый эфир.mp4"
     assert captured["format"] == "bestvideo+bestaudio/best"
     assert captured["http_headers"] == {"Authorization": "Bearer test"}
+    assert "impersonate" not in captured
     assert not any(stage == "downloading" and progress == 100 for stage, progress, _ in updates)
     assert updates[-1] == ("completed", 100, "Видео сохранено")
 

@@ -20,6 +20,7 @@ RUNTIME_DISTRIBUTIONS = (
     "uvicorn",
     "yt-dlp",
     "yt-dlp-ejs",
+    "curl-cffi",
     "faster-whisper",
     "onnx-asr",
     "onnxruntime",

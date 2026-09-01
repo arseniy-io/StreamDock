@@ -16,6 +16,7 @@ from threading import Event, Lock, Thread
 from urllib.parse import urlparse
 
 import yt_dlp
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 from app.config import YTDLP_CONCURRENT_FRAGMENTS
 from app.services.downloader import (
@@ -108,6 +109,11 @@ def normalize_extension_stream_url(url: str) -> str:
         master_path = f"{path[:-len('media.m3u8')]}master.m3u8"
         return parsed._replace(path=master_path).geturl()
     return url.strip()
+
+
+def _is_kinescope_stream_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower().rstrip(".")
+    return host == "kinescope.io" or host.endswith(".kinescope.io")
 
 
 def validate_public_media_url(url: str) -> str:
@@ -338,6 +344,12 @@ def download_extension_stream(
         "progress_hooks": [progress_hook],
         "postprocessor_hooks": [postprocessor_hook],
     }
+    if _is_kinescope_stream_url(safe_url):
+        # Kinescope принимает тот же HLS-поток в Chrome, но на некоторых сетях
+        # оставляет обычный Python TLS-клиент ждать ответа до тайм-аута.
+        # Поддерживаемый yt-dlp транспорт curl_cffi повторяет сетевой профиль
+        # браузера и используется только для доменов Kinescope.
+        options["impersonate"] = ImpersonateTarget("chrome")
 
     def perform_download() -> Path:
         nonlocal destination_identity

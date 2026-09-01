@@ -5,6 +5,7 @@
 Основные сторонние проекты:
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - загрузка медиаданных;
+- [curl-cffi](https://github.com/lexiforest/curl_cffi) - совместимый с браузером сетевой транспорт для Kinescope;
 - [FFmpeg](https://ffmpeg.org/) - объединение и преобразование аудио и видео;
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и модели [Whisper](https://github.com/openai/whisper) - распознавание речи;
 - [onnx-asr](https://github.com/istupakov/onnx-asr) и [GigaAM](https://huggingface.co/istupakov/gigaam-v3-onnx) - распознавание русской речи;

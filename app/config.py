@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = "0.4.1"
+APP_VERSION = "0.4.2"
 STATIC_DIR = BASE_DIR / "app" / "static"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 MODELS_DIR = BASE_DIR / "models"

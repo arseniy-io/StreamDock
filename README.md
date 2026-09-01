@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/arseniy-io/StreamDock/actions/workflows/ci.yml"><img src="https://github.com/arseniy-io/StreamDock/actions/workflows/ci.yml/badge.svg" alt="Проверка проекта"></a>
-  <img src="https://img.shields.io/badge/version-0.4.1_beta-315efb" alt="Версия 0.4.1 beta">
+  <img src="https://img.shields.io/badge/version-0.4.2_beta-315efb" alt="Версия 0.4.2 beta">
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0b5ed7" alt="Windows 10 и 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-16a34a" alt="Лицензия MIT"></a>
 </p>

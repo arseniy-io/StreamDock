@@ -77,7 +77,9 @@ def test_system_check_contains_only_runtime_distributions() -> None:
     module = _load_script("streamdock_system_check_runtime", "scripts/system_check.py")
     assert "pytest" not in module.RUNTIME_DISTRIBUTIONS
     assert "httpx" not in module.RUNTIME_DISTRIBUTIONS
-    assert {"yt-dlp", "faster-whisper", "onnx-asr", "sherpa-onnx"} <= set(module.RUNTIME_DISTRIBUTIONS)
+    assert {"yt-dlp", "curl-cffi", "faster-whisper", "onnx-asr", "sherpa-onnx"} <= set(
+        module.RUNTIME_DISTRIBUTIONS
+    )
 
 
 def test_model_download_defaults_to_hybrid_models_and_project_cache() -> None:
