@@ -118,6 +118,17 @@ async function main() {
   vm.runInNewContext(fs.readFileSync(backgroundPath, "utf8"), context, { filename: backgroundPath });
   assert.equal(typeof messageHandler, "function", "background.js не зарегистрировал обработчик сообщений");
 
+  const missingHostResponse = await new Promise((resolve) => {
+    const keepChannelOpen = messageHandler(
+      { type: "APP_COMMAND", command: "status" },
+      { id: "test-extension" },
+      resolve
+    );
+    assert.equal(keepChannelOpen, true);
+  });
+  assert.equal(missingHostResponse.state, "helper_missing");
+  assert.match(missingHostResponse.message, /repair_extension\.bat/);
+
   const candidateUrls = [
     "https://kinescope.io/video-id/master.m3u8",
     "https://kinescope.io/video-id/media.m3u8?quality=1080&type=video",
@@ -169,9 +180,9 @@ async function main() {
   assert.match(createdTabs[0].url, /^chrome-extension:\/\/test-extension\/progress\.html\?job=/);
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(requests.length, 1, "backend должен получить ровно один запрос");
-  assert.equal(requests[0].url, "http://127.0.0.1:8765/api/extension/download");
-  const requestBody = JSON.parse(requests[0].options.body);
+  const downloadRequests = requests.filter((request) => request.url === "http://127.0.0.1:8765/api/extension/download");
+  assert.equal(downloadRequests.length, 1, "backend должен получить ровно один запрос загрузки");
+  const requestBody = JSON.parse(downloadRequests[0].options.body);
   assert.equal(requestBody.request_headers.Cookie, "session=private");
   assert.equal(requestBody.client_request_id, response.jobId);
 

@@ -574,7 +574,7 @@ async function appCommand(command) {
       ok: false,
       state: "helper_missing",
       managed: false,
-      message: "Локальный помощник не найден. Запустите install.bat в папке проекта и перезагрузите расширение."
+      message: "Локальный помощник недоступен. Запустите repair_extension.bat в папке StreamDock и перезагрузите расширение. Если StreamDock ещё не установлен, сначала выполните install.bat."
     };
   }
 }

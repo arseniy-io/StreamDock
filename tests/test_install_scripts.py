@@ -26,6 +26,7 @@ def test_batch_files_call_only_their_fixed_local_scripts() -> None:
         "install.bat": "scripts\\install.ps1",
         "start.bat": "scripts\\start.ps1",
         "update.bat": "scripts\\update.ps1",
+        "repair_extension.bat": "scripts\\install_native_host.ps1",
         "download_models.bat": "scripts\\download_models.py",
         "uninstall.bat": "scripts\\uninstall_native_host.ps1",
     }
@@ -36,7 +37,7 @@ def test_batch_files_call_only_their_fixed_local_scripts() -> None:
 
 
 def test_batch_files_switch_to_utf8_for_russian_messages() -> None:
-    for filename in ("install.bat", "start.bat", "update.bat", "download_models.bat", "uninstall.bat"):
+    for filename in ("install.bat", "start.bat", "update.bat", "repair_extension.bat", "download_models.bat", "uninstall.bat"):
         assert "chcp 65001 >nul" in _read(filename)
 
 
@@ -92,6 +93,6 @@ def test_model_download_defaults_to_hybrid_models_and_project_cache() -> None:
     assert "ensure_speaker_models(report, Event(), models_directory=SPEAKER_MODELS_DIR)" in script
 
 
-def test_powershell_scripts_use_windows_compatible_utf8_bom() -> None:
-    for relative_path in ("scripts/install.ps1", "scripts/start.ps1", "scripts/update.ps1"):
+def test_native_windows_sources_use_utf8_bom() -> None:
+    for relative_path in ("scripts/install.ps1", "scripts/start.ps1", "scripts/update.ps1", "scripts/install_native_host.ps1", "scripts/native-host/StreamDockHost.cs"):
         assert (PROJECT_ROOT / relative_path).read_bytes().startswith(b"\xef\xbb\xbf")
